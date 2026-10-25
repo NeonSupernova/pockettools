@@ -258,7 +258,7 @@ class NetScanView(ui.View):
         self.rows = []
         self.seen_version = -1
         self.monitor = None
-        self.ticker = Ticker(0.4, self.poll)
+        self.ticker = Ticker(0.4, self.poll, self)
 
     def layout(self):
         W, H, p = self.width, self.height, 8
@@ -376,7 +376,7 @@ class MonitorView(ui.View):
         self.busy = False
         self.offscreen = 0
         self._caption()
-        self.ticker = Ticker(1.0, self.tick)
+        self.ticker = Ticker(1.0, self.tick, self)
         self.ticker.start()
 
     def _caption(self):

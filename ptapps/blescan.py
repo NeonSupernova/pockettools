@@ -268,7 +268,7 @@ class BLEView(ui.View):
             self.add_subview(v)
         self.scan_item = ui.ButtonItem(title='Stop', action=self.toggle)
         self.right_button_items = [self.scan_item]
-        self.ticker = Ticker(TICK, self.tick)
+        self.ticker = Ticker(TICK, self.tick, self)
         self.scanner.start()
         self.ticker.start()
 

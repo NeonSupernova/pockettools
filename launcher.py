@@ -63,7 +63,8 @@ def _load(modname):
 
 
 from ptlib import theme  # noqa: E402
-from ptlib.ticker import Ticker  # noqa: E402
+from ptlib.ticker import Ticker, after  # noqa: E402
+from objc_util import on_main_thread  # noqa: E402
 from ptlib import updater  # noqa: E402
 
 
@@ -131,7 +132,11 @@ class LogView(ui.View):
         except KeyboardInterrupt:
             return
         log.clear()
-        ui.delay(self.refresh, 0.1)
+        self._refresh_main()
+
+    @on_main_thread
+    def _refresh_main(self):
+        self.refresh()
 
 
 @log.instrument
@@ -146,7 +151,7 @@ class Launcher(ui.View):
         self.tv.flex = 'WH'
         self.add_subview(self.tv)
         self.active = None
-        self.watch = Ticker(0.5, self._watch)
+        self.watch = Ticker(0.5, self._watch, self)
         self.right_button_items = [ui.ButtonItem(title='Logs', action=self.open_logs),
                                    ui.ButtonItem(title='Update', action=self.on_update)]
 
@@ -268,12 +273,12 @@ def main():
     _log.info('presenting')
     shell.present('fullscreen', hide_title_bar=True)
     _log.info('presented')
-    ui.delay(shell.layout, 0.3)  # safe-area insets are only valid once in a window
+    after(shell, 0.3, shell.layout)  # safe-area insets are only valid once in a window
     if crashed:
-        ui.delay(lambda: console.hud_alert('Last session did not close cleanly: see Logs', 'error', 2.5), 0.8)
+        after(shell, 0.8, lambda: console.hud_alert('Last session did not close cleanly: see Logs', 'error', 2.5))
     if len(sys.argv) > 1:
         key = sys.argv[1].strip().lower()
-        ui.delay(lambda: shell.launcher.open_key(key), 0.6)
+        after(shell, 0.6, lambda: shell.launcher.open_key(key))
 
 
 if __name__ == '__main__':
