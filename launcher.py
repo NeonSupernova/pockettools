@@ -9,7 +9,9 @@ Closing the launcher (Close button) stops the active app via will_close().
 
 Diagnostics: everything logs to data/logs/pockettools.log; hard crashes dump a
 Python stack to data/logs/crash.log (faulthandler). If the previous session
-died, the launcher says so on start. Both files are viewable under Logs.
+died, the launcher says so on start. Both files are viewable under Logs, and
+once a GitHub token is set (Logs -> Upload) they auto-upload to a branch
+(ptlib/logupload.py) on launch, on errors and on close.
 
 Updates: on launch a background thread checks GitHub (ptlib/updater.py) and
 installs a new version if there is one; it applies on the next launch. The
@@ -31,6 +33,7 @@ if ROOT not in sys.path:
 import ui  # noqa: E402
 import console  # noqa: E402
 import clipboard  # noqa: E402
+import dialogs  # noqa: E402
 
 from ptlib import log  # noqa: E402  (set up before anything else can fail)
 
@@ -66,6 +69,7 @@ from ptlib import theme  # noqa: E402
 from ptlib.ticker import Ticker, after  # noqa: E402
 from objc_util import on_main_thread  # noqa: E402
 from ptlib import updater  # noqa: E402
+from ptlib import logupload  # noqa: E402
 
 
 class _Insets(Structure):
@@ -103,7 +107,8 @@ class LogView(ui.View):
         self.add_subview(self.seg)
         self.add_subview(self.tv)
         self.right_button_items = [ui.ButtonItem(title='Clear', action=self.on_clear),
-                                   ui.ButtonItem(title='Copy', action=self.on_copy)]
+                                   ui.ButtonItem(title='Copy', action=self.on_copy),
+                                   ui.ButtonItem(title='Upload', action=self.on_upload)]
         self.refresh()
 
     def layout(self):
@@ -137,6 +142,43 @@ class LogView(ui.View):
     @on_main_thread
     def _refresh_main(self):
         self.refresh()
+
+    @log.bg
+    def on_upload(self, sender):
+        c = logupload.config()
+        if c['token']:
+            state = 'on' if c['enabled'] else 'OFF'
+            try:
+                choice = console.alert('Upload logs', 'Auto-upload %s\n%s@%s as %s\nLast: %s'
+                                       % (state, c['repo'], c['branch'], c['device'], logupload.status()),
+                                       'Upload now', 'Settings')
+            except KeyboardInterrupt:
+                return
+            if choice == 2 and not self._settings(c):
+                return
+        elif not self._settings(c):
+            return
+        console.hud_alert('Uploading\u2026', 'success', 0.6)
+        ok, detail = logupload.upload('manual')
+        console.hud_alert(('Uploaded to ' if ok else 'Upload failed: ') + detail, 'success' if ok else 'error', 2.5)
+
+    def _settings(self, c):
+        r = dialogs.form_dialog(title='Log upload', fields=[
+            {'type': 'password', 'key': 'token', 'title': 'GitHub token', 'value': c['token']},
+            {'type': 'text', 'key': 'repo', 'title': 'Repo (owner/name)', 'value': c['repo']},
+            {'type': 'text', 'key': 'branch', 'title': 'Branch', 'value': c['branch']},
+            {'type': 'text', 'key': 'device', 'title': 'Device name', 'value': c['device']},
+            {'type': 'switch', 'key': 'enabled', 'title': 'Auto-upload', 'value': bool(c['enabled'])},
+        ])
+        if not r:
+            return False
+        c.update(token=r['token'].strip(), repo=r['repo'].strip() or logupload.DEFAULT_REPO,
+                 branch=r['branch'].strip() or logupload.DEFAULT_BRANCH,
+                 device=r['device'].strip() or logupload.default_device(), enabled=bool(r['enabled']))
+        logupload.save_config(c)
+        _log.info('log upload settings saved: %s@%s device=%s enabled=%s token=%s',
+                  c['repo'], c['branch'], c['device'], c['enabled'], 'set' if c['token'] else 'none')
+        return bool(c['token'])
 
 
 @log.instrument
@@ -255,6 +297,7 @@ class Shell(ui.View):
         _log.info('shell closing')
         self.launcher.stop_active()
         log.clean_shutdown()
+        logupload.upload_async('shutdown')
 
 
 def _auto_update():
@@ -266,6 +309,8 @@ def _auto_update():
 def main():
     crashed = log.begin_session()
     _log.info('version %s', (updater.current_version() or 'unknown')[:7])
+    logupload.install(log.root)
+    logupload.upload_async('launch-after-crash' if crashed else 'launch')
     if AUTO_UPDATE:
         threading.Thread(target=_auto_update, name='updater', daemon=True).start()
     _log.info('building shell')

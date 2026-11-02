@@ -20,7 +20,7 @@ On every launch a background thread asks GitHub for the head of `main` (ETag-con
 
 | App | Notes |
 |---|---|
-| Volleyball | Tap a score half to award a rally. Tap a player, then a stat: Kill/Ace/Block also score for home, Err scores for away, Dig is stat-only. Serve and home rotation are automatic on side-out; `Serve ⇄` fixes the server without rotating. Sub: tap `Sub`, then the player going out. Autosaves every action. |
+| Volleyball | **Team** → add a team, then players (jersey #, name, position). **New** picks the team and you tap the starting six in serve order. Court cells show number + name; `SUB ⇄#4` marks a player who came in for #4. The **bench** strip under the court lists everyone not on court (`only for #4` = may only return for #4). Sub: tap `Sub`, tap the player going OUT, tap the green bench player coming IN (`+ #` for someone not on the roster). Pairing and subs-per-set limit are warned, not blocked. Tap a score half to award a rally; tap a player, then a stat: Kill/Ace/Block score for home, Err for away, Dig is stat-only. Serve and rotation are automatic; `Serve ⇄` fixes the server without rotating. Stats lists names and every substitution. Autosaves every action. |
 | Counter | Big `+`; tap a row to select, tap the selected row to rename, swipe to delete. |
 | Grades | Classes are weighted (weight = % of final) or points-based. Add future work with a blank score to get floor/ceiling and "need on rest". Scale and prior GPA/credits under `Scale`. |
 | Network Scan | Single-threaded TCP-connect sweep (no ICMP on iOS), 64 connects in flight. Tap a host for a live latency graph. Allow Local Network on first run. |
@@ -29,5 +29,7 @@ On every launch a background thread asks GitHub for the head of `main` (ETag-con
 ## Diagnostics
 
 `data/logs/pockettools.log` (flushed per record) and `data/logs/crash.log` (faulthandler stacks on native crashes), both viewable under **Logs**. The launcher flags a session that didn't close cleanly.
+
+**Auto-upload:** Logs → Upload → Settings, paste a fine-grained GitHub token scoped to one repo with *Contents: read and write*. After that the log tail plus crash dumps are committed to `logs/<device>.log` on the `device-logs` branch (created from `main` on first upload) on every launch, a few seconds after any error (max once a minute), and on close. The token stays in `data/logupload/config.json`. Logs include app activity (scanned hosts, BLE names), so if this repo is public, point the upload at a private repo instead.
 
 Deep link: Shortcuts → Run Pythonista Script → `launcher.py` with argument `volley`, `count`, `grades`, `net` or `ble`.
