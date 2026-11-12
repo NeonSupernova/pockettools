@@ -25,6 +25,8 @@ On every launch a background thread asks GitHub for the head of `main` (ETag-con
 | Grades | Classes are weighted (weight = % of final) or points-based. Add future work with a blank score to get floor/ceiling and "need on rest". Scale and prior GPA/credits under `Scale`. |
 | Network Scan | Single-threaded TCP-connect sweep (no ICMP on iOS), 64 connects in flight. Tap a host for a live latency graph. Allow Local Network on first run. |
 | BLE Scan | Raw CoreBluetooth via objc_util. Rescans every 2 s for fresh RSSI. Tap rows to pin them to the graph; ⓘ shows adv data. |
+| Classify | **Camera** or **Photo**, then Apple's Vision framework runs on the phone (no network, no key). **Labels**: whole-image classes (~1,300 built in) with confidence bars. **Objects**: detected regions (salient objects, animals, people, faces) boxed on the photo, each named by classifying its crop. **Copy** exports results; **Tag** sends the photo and detections to Tagger. iOS 13+. |
+| Tagger | **Camera**/**Photo**, then drag on the photo to box an object: the crop is classified and a tag picker opens (suggestions, your recent tags, or type one). **Detect** proposes boxes automatically; dashed = unconfirmed until you **Tag** it. Tap a box to select, drag to move, corner dot to resize. Autosaves to a library with thumbnails; **Tags** filters by tag. **More**: annotated copy to Photos, JSON export, whole-photo labels. Stored in `data/tagger/<id>/`. |
 
 ## Diagnostics
 
@@ -32,4 +34,4 @@ On every launch a background thread asks GitHub for the head of `main` (ETag-con
 
 **Auto-upload:** Logs → Upload → Settings, paste a fine-grained GitHub token scoped to one repo with *Contents: read and write*. After that the log tail plus crash dumps are committed to `logs/<device>.log` on the `device-logs` branch (created from `main` on first upload) on every launch, a few seconds after any error (max once a minute), and on close. The token stays in `data/logupload/config.json`. Logs include app activity (scanned hosts, BLE names), so if this repo is public, point the upload at a private repo instead.
 
-Deep link: Shortcuts → Run Pythonista Script → `launcher.py` with argument `volley`, `count`, `grades`, `net` or `ble`.
+Deep link: Shortcuts → Run Pythonista Script → `launcher.py` with argument `volley`, `count`, `grades`, `net`, `ble`, `classify` or `tag`.
