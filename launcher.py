@@ -44,7 +44,8 @@ AUTO_UPDATE = True
 DEV_RELOAD = True  # re-import modules on each open so edits apply without restarting Pythonista
 # ptlib.log is deliberately absent: reloading it would orphan faulthandler's open file.
 LIB = ('ptlib.theme', 'ptlib.storage', 'ptlib.ticker', 'ptlib.haptics', 'ptlib.graph',
-       'ptlib.vision', 'ptlib.imgcanvas', 'ptapps.tagger', 'ptlib.elec')
+       'ptlib.vision', 'ptlib.imgcanvas', 'ptapps.tagger', 'ptlib.elec',
+       'ptlib.pydeps', 'ptlib.mediatags', 'ptlib.savefile')
 APPS = [
     ('volley', 'Volleyball', 'ptapps.volleyball', 'Score, serve/rotation, timeouts, subs, player stats'),
     ('count', 'Counter', 'ptapps.counter', 'Named tally counters'),
@@ -54,6 +55,7 @@ APPS = [
     ('classify', 'Classify', 'ptapps.classify', 'On-device image labels and object detection'),
     ('tag', 'Tagger', 'ptapps.tagger', 'Camera: box objects, tag them, save a labelled library'),
     ('elec', 'Electrical', 'ptapps.electric', 'Wire gauge (drop + ampacity), fuse, Ohm\'s law, clamp meter'),
+    ('dl', 'Downloader', 'ptapps.ytdl', 'yt-dlp: paste a link, pick video/audio + tags, save to Files'),
 ]
 
 
