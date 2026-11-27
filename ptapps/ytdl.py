@@ -26,6 +26,7 @@ those may offer fewer formats or fail with the error yt-dlp reports.
 import os
 import re
 import shutil
+import sys
 import threading
 import time
 import urllib.request
@@ -175,6 +176,39 @@ def best_thumb(info):
 
 
 # ---- yt-dlp glue ----
+def on_ios():
+    import platform
+    return sys.platform == 'ios' or platform.machine().startswith(('iPhone', 'iPad', 'iPod'))
+
+
+def no_subprocesses():
+    """iOS can't start processes, and Pythonista's subprocess says so with an exception
+    yt-dlp doesn't expect (it only treats OSError as "program not installed"). yt-dlp
+    probes for ffmpeg (default format choice) and deno/node (YouTube) even when just
+    reading a page, so every link failed with "Subprocesses are not supported on ios".
+
+    Make process starts fail as FileNotFoundError instead: yt-dlp then concludes
+    ffmpeg / JS runtimes are simply absent and carries on. All of yt-dlp's process
+    starts go through yt_dlp.utils.Popen, a subclass of subprocess.Popen; patch both
+    so this works whether or not yt-dlp is already imported. Idempotent."""
+    import errno
+    import subprocess
+
+    def refuse(self, args=None, *a, **k):
+        prog = args[0] if isinstance(args, (list, tuple)) and args else args
+        raise FileNotFoundError(errno.ENOENT, 'iOS cannot run external programs', str(prog))
+
+    if not getattr(subprocess.Popen, '_pt_no_spawn', False):
+        base = subprocess.Popen
+        subprocess.Popen = type('Popen', (base,), {'__init__': refuse, '_pt_no_spawn': True,
+                                                   '__del__': lambda self: None})
+    yu = sys.modules.get('yt_dlp.utils._utils')
+    if yu is not None and not getattr(yu.Popen, '_pt_no_spawn', False):
+        yu.Popen.__init__ = refuse
+        yu.Popen.__del__ = lambda self: None
+        yu.Popen._pt_no_spawn = True
+
+
 class _YLog(object):
     def debug(self, msg):
         if not msg.startswith('[debug] '):
@@ -473,6 +507,8 @@ class DownloaderView(ui.View):
                 v = pydeps.ensure('yt-dlp', self.set_status)
                 pydeps.ensure('mutagen', self.set_status)
                 msg = None
+            if on_ios():
+                no_subprocesses()
             import yt_dlp  # verifies the wheel imports on this Python
             _log.info("yt-dlp %s imported", yt_dlp.version.__version__)
             self.ytdlp_version = v
@@ -524,6 +560,8 @@ class DownloaderView(ui.View):
         threading.Thread(target=self._fetch_worker, args=(url,), name='ytdl-fetch', daemon=True).start()
 
     def _fetch_worker(self, url):
+        if on_ios():
+            no_subprocesses()
         import yt_dlp
         self.set_busy('fetch')
         self.set_status('Reading %s…' % url[:60])
@@ -582,8 +620,15 @@ class DownloaderView(ui.View):
         self.name_field.text = safe_name(info.get('title') or info.get('id'))
         self.set_progress(0)
         self.busy = None
-        self.status.text = '%d video and %d audio formats found.' % (len(video), len(audio))
-        self.status.text_color = theme.MUTED
+        if video or audio:
+            self.status.text = '%d video and %d audio formats found.' % (len(video), len(audio))
+            self.status.text_color = theme.MUTED
+        else:
+            yt = 'youtube' in (info.get('extractor_key') or '').lower()
+            self.status.text = ('YouTube offered no downloadable streams: it needs a JavaScript runtime to unlock '
+                                'them, and iOS can\'t run one.' if yt else
+                                'No downloadable formats on this page (it may need a login or a JavaScript runtime).')
+            self.status.text_color = theme.RED
         self.refresh()
 
     # ---- options ----
@@ -657,6 +702,8 @@ class DownloaderView(ui.View):
     _progress._pt_guarded = True  # log.instrument skips it
 
     def _download_worker(self, job):
+        if on_ios():
+            no_subprocesses()
         import yt_dlp
         self.set_busy('download')
         self.set_progress(0)
@@ -745,7 +792,6 @@ class DownloaderView(ui.View):
         st = pydeps.state()
         y = st.get('yt-dlp', {}).get('version', 'not installed')
         m = st.get('mutagen', {}).get('version', 'not installed')
-        import sys
         opts = ['Update yt-dlp and mutagen', 'Copy page info (debug)']
         pick = dialogs.list_dialog('yt-dlp %s · mutagen %s · Python %d.%d' % ((y, m) + sys.version_info[:2]), opts)
         if pick == opts[0]:
